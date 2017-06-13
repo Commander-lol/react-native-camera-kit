@@ -2,15 +2,17 @@ package com.wix.RNCameraKit.camera;
 
 import android.app.Activity;
 import android.content.Context;
-import android.graphics.PixelFormat;
+import android.graphics.ImageFormat;
 import android.graphics.Point;
 import android.hardware.Camera;
+import android.util.Log;
 import android.view.Display;
 import android.view.Surface;
 import android.view.WindowManager;
 
 import com.facebook.react.uimanager.SimpleViewManager;
 import com.facebook.react.uimanager.ThemedReactContext;
+import com.facebook.react.uimanager.annotations.ReactProp;
 
 import java.io.IOException;
 import java.util.List;
@@ -49,7 +51,8 @@ public class CameraViewManager extends SimpleViewManager<CameraView> {
         connectHolder();
     }
 
-    public static boolean setFlashMode(String mode) {
+    @ReactProp(name = "flashMode")
+    public static boolean setFlashMode(CameraView view, String mode) {
         if (camera == null) {
             return false;
         }
@@ -134,12 +137,36 @@ public class CameraViewManager extends SimpleViewManager<CameraView> {
         }
     }
 
+    public static int getBackCameraID() {
+        int cameraId = -1;
+        // Search for the front facing camera
+        int numberOfCameras = Camera.getNumberOfCameras();
+        for (int i = 0; i < numberOfCameras; i++) {
+            Camera.CameraInfo info = new Camera.CameraInfo();
+            Camera.getCameraInfo(i, info);
+            if (info.facing == Camera.CameraInfo.CAMERA_FACING_BACK) {
+                cameraId = i;
+                break;
+            }
+        }
+        return cameraId;
+    }
+
+    public static void updateOrientation() {
+        setCameraDisplayOrientation(((Activity) reactContext.getBaseContext()));
+    }
+
     public static void setCameraDisplayOrientation(Activity activity) {
+        if (camera == null) return;
         int result = getRotation(activity);
         Camera.Parameters parameters = camera.getParameters();
         parameters.setRotation(result);
-        parameters.set("orientation", "portrait");
-        parameters.setPictureFormat(PixelFormat.JPEG);
+        if (result == 90 || result == 270) {
+            parameters.set("orientation", "landscape");
+        } else {
+            parameters.set("orientation", "portrait");
+        }
+        parameters.setPictureFormat(ImageFormat.JPEG);
         camera.setDisplayOrientation(result);
         camera.setParameters(parameters);
     }

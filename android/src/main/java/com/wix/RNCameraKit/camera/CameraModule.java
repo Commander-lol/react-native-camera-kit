@@ -10,7 +10,6 @@ import com.facebook.react.bridge.ReactMethod;
 import com.wix.RNCameraKit.camera.commands.Capture;
 import com.wix.RNCameraKit.camera.permission.CameraPermission;
 
-
 public class CameraModule extends ReactContextBaseJavaModule {
 
     private final CameraPermission cameraPermission;
@@ -56,11 +55,7 @@ public class CameraModule extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void checkDeviceCameraAuthorizationStatus(Promise promise) {
-        if (getCurrentActivity() == null) {
-            checkPermissionStatusPromise = promise;
-        } else {
-            promise.resolve(cameraPermission.checkAuthorizationStatus(getCurrentActivity()));
-        }
+        promise.resolve(cameraPermission.checkAuthorizationStatus(getCurrentActivity()));
     }
 
     @ReactMethod
@@ -96,7 +91,7 @@ public class CameraModule extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void setFlashMode(String mode, Promise promise) {
-        promise.resolve(CameraViewManager.setFlashMode(mode));
+        promise.resolve(CameraViewManager.setFlashMode(null, mode));
     }
 
     @ReactMethod

@@ -1,27 +1,48 @@
 import React, {Component} from 'react';
 import {
 	requireNativeComponent,
-	NativeModules
+	NativeModules,
+	DeviceEventEmitter
 } from 'react-native';
+import { omit } from 'lodash'
 
 const NativeCamera = requireNativeComponent('CameraView', null);
 const NativeCameraModule = NativeModules.CameraModule;
 
+const unnativeProps = ['onZoom', 'onMessage']
+
 export default class CameraKitCamera extends React.Component {
 
-	render() {
-		return <NativeCamera {...this.props}/>
-	}
-
-	async logData() {
-		console.log('front Camera?', await NativeCameraModule.hasFrontCamera());
-		console.log('hasFlash?', await NativeCameraModule.hasFlashForCurrentCamera());
-		console.log('flashMode?', await NativeCameraModule.getFlashMode());
-	}
-
 	static async requestDeviceCameraAuthorization() {
-    const usersAuthorizationAnswer = await NativeCameraModule.requestDeviceCameraAuthorization();
-    return usersAuthorizationAnswer;
+		const usersAuthorizationAnswer = await NativeCameraModule.requestDeviceCameraAuthorization();
+		return usersAuthorizationAnswer;
+	}
+
+	static async checkDeviceCameraAuthorizationStatus() {
+		return await NativeCameraModule.checkDeviceCameraAuthorizationStatus();
+	}
+
+	static async hasCameraPermission() {
+		const success = await NativeCameraModule.hasCameraPermission();
+		return success;
+	}
+
+	componentWillMount() {
+		this._addOnZoomChangedListener()
+		this._addOnMessageListener()
+	}
+
+	componentWillUnmount() {
+		this._removeOnZoomChangedListener()
+		this._removeOnMessageListener()
+	}
+
+	render() {
+		return <NativeCamera {...this.getNativeProps()}/>
+	}
+
+	getNativeProps() {
+		return omit(this.props, unnativeProps)
 	}
 
 	async capture(saveToCameraRoll = true) {
@@ -39,12 +60,43 @@ export default class CameraKitCamera extends React.Component {
 		return success;
 	}
 
-	static async checkDeviceCameraAuthorizationStatus() {
-		return await NativeCameraModule.checkDeviceCameraAuthorizationStatus();
+	_addOnZoomChangedListener(props) {
+		const { onZoom } = props || this.props
+		this._removeOnZoomChangedListener()
+		if (onZoom) {
+			this.zoomChangedListener = DeviceEventEmitter.addListener('ZoomComplete', this._onZoomChanged)
+		}
 	}
 
-  static async hasCameraPermission() {
-    const success = await NativeCameraModule.hasCameraPermission();
-    return success;
-  }
+	_removeOnZoomChangedListener() {
+		const listener = this.zoomChangedListener
+		if (listener) {
+			listener.remove()
+		}
+	}
+
+	_addOnMessageListener(props) {
+		const { onMessage } = props || this.props
+		this._removeOnMessageListener()
+		if (onMessage) {
+			this.messageListener = DeviceEventEmitter.addListener('Message', this._onMessage)
+		}
+	}
+
+	_removeOnMessageListener() {
+		const listener = this.messageListener
+		if (listener) {
+			listener.remove()
+		}
+	}
+	_onZoomChanged = (data) => {
+		if (this.props.onZoom) {
+			this.props.onZoom(data)
+		}
+	}
+	_onMessage = (data) => {
+		if (this.props.onMessage) {
+			this.props.onMessage(data)
+		}
+	}
 }
