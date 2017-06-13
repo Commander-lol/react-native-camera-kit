@@ -1,8 +1,10 @@
 package com.wix.RNCameraKit.camera;
 
+import android.content.Context;
 import android.graphics.Color;
 import android.hardware.Camera;
 import android.os.Handler;
+import android.os.Vibrator;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
@@ -14,20 +16,29 @@ import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.modules.core.DeviceEventManagerModule;
 import com.facebook.react.uimanager.ThemedReactContext;
+import com.wix.RNCameraKit.EventManager;
+
+import java.util.Date;
 
 import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
 
 public class CameraView extends FrameLayout implements SurfaceHolder.Callback {
+    static final int LONG_PRESS_TIME = 750;
+
     private ThemedReactContext context;
     private final SurfaceView surface;
     private float lastFingerSpacing;
+    private long lastTouchStarted;
+    private long lastTouchEnded;
     private final FocusRectangle focus;
     private final Handler delay = new Handler();
+    private final EventManager manager;
 
-    public CameraView(ThemedReactContext context) {
+    public CameraView(final ThemedReactContext context) {
         super(context);
         this.context = context;
 
+        manager = new EventManager(context);
         focus = new FocusRectangle(context);
         surface = new SurfaceView(context);
 
@@ -40,10 +51,26 @@ public class CameraView extends FrameLayout implements SurfaceHolder.Callback {
 
         surface.setOnTouchListener(new OnTouchListener() {
             @Override
-            public boolean onTouch(View v, MotionEvent event) {
+            public boolean onTouch(View v, final MotionEvent event) {
                 int action = event.getActionMasked();
 
-                if (action == MotionEvent.ACTION_DOWN) return true;
+                if (action == MotionEvent.ACTION_DOWN) {
+                    manager.sendEventWithLocation("OnPressStart", event);
+                    lastTouchStarted = new Date().getTime();
+                    final ThemedReactContext cachedContext = context;
+                    delay.postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            // User hasn't completed last touch and is only using one finger (otherwise triggers while zooming)
+                            if (lastTouchEnded < lastTouchStarted && event.getPointerCount() == 1) {
+                                manager.sendEventWithLocation("OnHold", event);
+                                Vibrator v = (Vibrator) cachedContext.getSystemService(Context.VIBRATOR_SERVICE);
+                                v.vibrate(50);
+                            }
+                        }
+                    }, LONG_PRESS_TIME);
+                    return true;
+                }
 
                 if (CameraViewManager.getCamera() != null) {
                     Camera camera = CameraViewManager.getCamera();
@@ -60,48 +87,16 @@ public class CameraView extends FrameLayout implements SurfaceHolder.Callback {
                         return false;
                     } else { // Tap
                         if (action == MotionEvent.ACTION_UP) {
-                            int x = (int) event.getX();
-                            int y = (int) event.getY();
+                            lastTouchEnded = new Date().getTime();
 
-                            focus.setBounds(
-                                    x - 50,
-                                    y - 50,
-                                    x + 50,
-                                    y + 50
-                            );
-
-                            sendMessage(m("ACTIVITY", "ACTIVE"), m("BOUNDS", focus.getBounds().flattenToString()));
-                            focus.setColor(FocusRectangle.FocusState.ACTIVE);
-
-                            try {
-                                camera.autoFocus(new Camera.AutoFocusCallback() {
-                                    @Override
-                                    public void onAutoFocus(boolean success, Camera camera) {
-                                        sendMessage(m("ACTIVITY", "FOCUS"));
-                                        if (success) {
-                                            sendMessage(m("ACTIVITY", "SUCCESS"));
-                                            focus.setColor(FocusRectangle.FocusState.SUCCESS);
-                                        } else {
-                                            sendMessage(m("ACTIVITY", "FAILED"));
-                                            focus.setColor(FocusRectangle.FocusState.FAILED);
-                                        }
-
-                                        delay.postDelayed(new Runnable() {
-                                            @Override
-                                            public void run() {
-                                                sendMessage(m("ACTIVITY", "COMPLETE"));
-                                                focus.setColor(FocusRectangle.FocusState.INACTIVE);
-                                            }
-                                        }, 200);
-                                    }
-                                });
+                            if (lastTouchEnded - lastTouchStarted >= LONG_PRESS_TIME) {
+                                manager.sendEventWithLocation("OnLongPress", event);
                                 return true;
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                                return false;
                             }
+
+                            manager.sendEventWithLocation("OnPress", event);
+                            return handleAutoFocus(v, event);
                         }
-                        return false;
                     }
                 }
                 return false;
@@ -155,22 +150,60 @@ public class CameraView extends FrameLayout implements SurfaceHolder.Callback {
         WritableMap callbackEvent = Arguments.createMap();
         callbackEvent.putInt("current", params.getZoom());
         callbackEvent.putInt("maximum", params.getMaxZoom());
-        sendMessage(m("Event", "Zoom Complete"));
-        context.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class).emit("ZoomComplete", callbackEvent);
+        manager.sendEvent("ZoomComplete", callbackEvent);
 
         return true;
     }
 
+    private boolean handleAutoFocus(View v, MotionEvent event) {
+        Camera camera = CameraViewManager.getCamera();
+
+        int x = (int) event.getX();
+        int y = (int) event.getY();
+
+        focus.invalidate();
+
+        focus.setBounds(
+                x - 50,
+                y - 50,
+                x + 50,
+                y + 50
+        );
+
+        manager.sendEventWithPairs("Message", m("ACTIVITY", "ACTIVE"), m("BOUNDS", focus.getBounds().flattenToString()));
+        focus.setColor(FocusRectangle.FocusState.ACTIVE);
+
+        try {
+            camera.autoFocus(new Camera.AutoFocusCallback() {
+                @Override
+                public void onAutoFocus(boolean success, Camera camera) {
+                    manager.sendEventWithPairs("Message", m("ACTIVITY", "FOCUS"));
+                    if (success) {
+                        manager.sendEventWithPairs("Message", m("ACTIVITY", "SUCCESS"));
+                        focus.setColor(FocusRectangle.FocusState.SUCCESS);
+                    } else {
+                        manager.sendEventWithPairs("Message", m("ACTIVITY", "FAILED"));
+                        focus.setColor(FocusRectangle.FocusState.FAILED);
+                    }
+
+                    delay.postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            manager.sendEventWithPairs("Message", m("ACTIVITY", "COMPLETE"));
+                            focus.setColor(FocusRectangle.FocusState.INACTIVE);
+                        }
+                    }, 200);
+                }
+            });
+            return true;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
     private String[] m(String a, String b) {
         return new String[]{a, b};
-    }
-    private void sendMessage(String[] ...plops) {
-        WritableMap callbackEvent = Arguments.createMap();
-        for (String[] pl : plops) {
-            callbackEvent.putString(pl[0], pl[1]);
-        }
-        context.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
-                .emit("Message", callbackEvent);
     }
 
     private float getFingerSpacing(MotionEvent event) {

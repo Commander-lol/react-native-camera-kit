@@ -13,6 +13,8 @@ const unnativeProps = ['onZoom', 'onMessage']
 
 export default class CameraKitCamera extends React.Component {
 
+	listeners = []
+
 	static async requestDeviceCameraAuthorization() {
 		const usersAuthorizationAnswer = await NativeCameraModule.requestDeviceCameraAuthorization();
 		return usersAuthorizationAnswer;
@@ -30,11 +32,15 @@ export default class CameraKitCamera extends React.Component {
 	componentWillMount() {
 		this._addOnZoomChangedListener()
 		this._addOnMessageListener()
+		this.addListener('OnLongPress', 'onLongPress')
+		this.addListener('OnPress', 'onPress')
+		this.addListener('OnHold', 'onHold')
 	}
 
 	componentWillUnmount() {
 		this._removeOnZoomChangedListener()
 		this._removeOnMessageListener()
+		this.removeListeners()
 	}
 
 	render() {
@@ -65,6 +71,23 @@ export default class CameraKitCamera extends React.Component {
 		this._removeOnZoomChangedListener()
 		if (onZoom) {
 			this.zoomChangedListener = DeviceEventEmitter.addListener('ZoomComplete', this._onZoomChanged)
+		}
+	}
+
+	addListener(event, key) {
+		const onX = this.props[key]
+		const paramName = `${event}Listener`
+		const listener = this[paramName]
+
+		this.listeners.push(paramName)
+
+		if (listener) listener.remove()
+		if (onX) this[paramName] = DeviceEventEmitter.addListener(event, onX)
+	}
+
+	removeListeners() {
+		for (let name of this.listeners) {
+			name in this && this[name].remove()
 		}
 	}
 
