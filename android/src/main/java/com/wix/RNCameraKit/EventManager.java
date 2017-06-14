@@ -38,6 +38,6 @@ public class EventManager {
     }
 
     private DeviceEventManagerModule.RCTDeviceEventEmitter getEventEmitter() {
-        return context.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+        return context.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class);
     }
 }
