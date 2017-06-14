@@ -33,6 +33,7 @@ public class CameraView extends FrameLayout implements SurfaceHolder.Callback {
     private final FocusRectangle focus;
     private final Handler delay = new Handler();
     private final EventManager manager;
+    private boolean disableVibration;
 
     public CameraView(final ThemedReactContext context) {
         super(context);
@@ -64,8 +65,10 @@ public class CameraView extends FrameLayout implements SurfaceHolder.Callback {
                             // User hasn't completed last touch and is only using one finger (otherwise triggers while zooming)
                             if (lastTouchEnded < lastTouchStarted && event.getPointerCount() == 1) {
                                 manager.sendEventWithLocation("OnHold", event);
-                                Vibrator v = (Vibrator) cachedContext.getSystemService(Context.VIBRATOR_SERVICE);
-                                v.vibrate(50);
+                                if (!disableVibration) {
+                                    Vibrator v = (Vibrator) cachedContext.getSystemService(Context.VIBRATOR_SERVICE);
+                                    v.vibrate(50);
+                                }
                             }
                         }
                     }, LONG_PRESS_TIME);
@@ -102,6 +105,10 @@ public class CameraView extends FrameLayout implements SurfaceHolder.Callback {
                 return false;
             }
         });
+    }
+
+    public void setDisableVibration(boolean disableVibration) {
+        this.disableVibration = disableVibration;
     }
 
     @Override

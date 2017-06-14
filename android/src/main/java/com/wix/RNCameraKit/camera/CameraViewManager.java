@@ -68,6 +68,12 @@ public class CameraViewManager extends SimpleViewManager<CameraView> {
         }
     }
 
+    @ReactProp(name = "disableVibration", defaultBoolean = false)
+    public static boolean setDisableVibration(CameraView view, boolean disableVibration) {
+        view.setDisableVibration(disableVibration);
+        return true;
+    }
+
     public static boolean changeCamera() {
         if (Camera.getNumberOfCameras() == 1) {
             return false;
