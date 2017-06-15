@@ -512,6 +512,8 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
   }
 
   imageInfoDict[@"size"] = [NSNumber numberWithInteger:imageData.length];
+  imageInfoDict[@"width"] = [NSNumber numberWithInteger:size.width];
+  imageInfoDict[@"height"] = [NSNumber numberWithInteger:size.height];
 
   if (shouldSaveToCameraRoll) {
       [CKGalleryManager saveImageToCameraRoll:imageData temporaryFileURL:temporaryFileURL block:^(BOOL success) {
@@ -575,6 +577,8 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
                             imageInfoDict[@"uri"] = temporaryFileURL.description;
                             imageInfoDict[@"name"] = temporaryFileURL.lastPathComponent;
                         }
+                        imageInfoDict[@"width"] = [NSNumber numberWithInteger:capturedImage.size.width];
+                        imageInfoDict[@"height"] = [NSNumber numberWithInteger:capturedImage.size.height];
                         imageInfoDict[@"size"] = [NSNumber numberWithInteger:imageData.length];
 
                         if (shouldSaveToCameraRoll) {
