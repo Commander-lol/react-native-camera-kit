@@ -27,11 +27,13 @@ RCT_EXPORT_MODULE()
 
 RCT_EXPORT_VIEW_PROPERTY(cameraOptions, NSDictionary)
 
+RCT_CUSTOM_VIEW_PROPERTY(flashMode, CKCameraFlashMode, CKCamera) {
+    [self.camera setFlashMode:[RCTConvert CKCameraFlashMode:json] callback: nil];
+}
 
 RCT_EXPORT_METHOD(checkDeviceCameraAuthorizationStatus:(RCTPromiseResolveBlock)resolve
                   reject:(__unused RCTPromiseRejectBlock)reject) {
 
-    
     AVAuthorizationStatus authStatus = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo];
     if(authStatus == AVAuthorizationStatusAuthorized) {
         resolve(@YES);
@@ -45,7 +47,7 @@ RCT_EXPORT_METHOD(checkDeviceCameraAuthorizationStatus:(RCTPromiseResolveBlock)r
 RCT_EXPORT_METHOD(requestDeviceCameraAuthorization:(RCTPromiseResolveBlock)resolve
                   reject:(__unused RCTPromiseRejectBlock)reject) {
     __block NSString *mediaType = AVMediaTypeVideo;
-    
+
     [AVCaptureDevice requestAccessForMediaType:mediaType completionHandler:^(BOOL granted) {
         if (resolve) {
             resolve(@(granted));
@@ -57,19 +59,24 @@ RCT_EXPORT_METHOD(requestDeviceCameraAuthorization:(RCTPromiseResolveBlock)resol
 RCT_EXPORT_METHOD(capture:(BOOL)shouldSaveToCameraRoll
                   resolve:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject) {
-    
+
+    NSLog(@"Going to do a photo a photog");
     [self.camera snapStillImage:shouldSaveToCameraRoll success:^(NSDictionary *imageObject) {
         if (imageObject) {
             if (resolve) {
                 resolve(imageObject);
+            } else {
+                reject(@"No Resolve", @"You have no resolve", nil);
             }
+        } else {
+          reject(@"No image object", @"There is no image object", nil);
         }
     }];
 }
 
 RCT_EXPORT_METHOD(changeCamera:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject) {
-    
+
     [self.camera changeCamera:^(BOOL success) {
         if (success) {
             if (resolve) {
@@ -82,7 +89,7 @@ RCT_EXPORT_METHOD(changeCamera:(RCTPromiseResolveBlock)resolve
 RCT_EXPORT_METHOD(setFlashMode:(CKCameraFlashMode)flashMode
                   resolve:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject) {
-    
+
     [self.camera setFlashMode:flashMode callback:^(BOOL success) {
         if (resolve) {
             resolve([NSNumber numberWithBool:success]);
