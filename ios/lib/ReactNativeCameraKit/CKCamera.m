@@ -145,8 +145,6 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
 - (instancetype)initWithFrame:(CGRect)frame {
     self = [super initWithFrame:frame];
 
-    NSLog(@"SOMETHING SOMETHING INIT");
-
     if (self){
         // Create the AVCaptureSession.
         self.session = [[AVCaptureSession alloc] init];
@@ -161,6 +159,8 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
         self.previewLayer = [[AVCaptureVideoPreviewLayer alloc] initWithSession:self.session];
         [self.layer addSublayer:self.previewLayer];
         self.previewLayer.videoGravity = AVLayerVideoGravityResizeAspectFill;
+        [self changePreviewOrientation:[UIApplication sharedApplication].statusBarOrientation];
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(orientationChanged:) name:UIDeviceOrientationDidChangeNotification object:nil];
 #endif
 
         UIView *focusView = [[UIView alloc] initWithFrame:CGRectZero];
@@ -181,8 +181,23 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
     return self;
 }
 
+- (void)orientationChanged: (NSNotification *) notification {
+  UIInterfaceOrientation orientation = [[UIApplication sharedApplication] statusBarOrientation];
+  [self changePreviewOrientation:orientation];
+}
 
--(void)setCameraOptions:(NSDictionary *)cameraOptions {
+- (void)changePreviewOrientation:(NSInteger)orientation {
+    dispatch_async(self.sessionQueue, ^{
+      NSLog(@"AASSDD");
+        if (self.previewLayer.connection.isVideoOrientationSupported) {
+          NSLog(@"AASSDD11");
+            self.previewLayer.connection.videoOrientation = orientation;
+        }
+          NSLog(@"AASSDD22");
+    });
+}
+
+- (void)setCameraOptions:(NSDictionary *)cameraOptions {
     _cameraOptions = cameraOptions;
 
     // CAMERA_OPTION_FLASH_MODE
