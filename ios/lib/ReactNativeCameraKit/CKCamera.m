@@ -187,13 +187,13 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
 }
 
 - (void)changePreviewOrientation:(NSInteger)orientation {
+    __weak typeof(self) weakSelf = self;
     dispatch_async(self.sessionQueue, ^{
-      NSLog(@"AASSDD");
-        if (self.previewLayer.connection.isVideoOrientationSupported) {
-          NSLog(@"AASSDD11");
-            self.previewLayer.connection.videoOrientation = orientation;
+      if (weakSelf != nil) {
+        if (weakSelf.previewLayer.connection.isVideoOrientationSupported) {
+            weakSelf.previewLayer.connection.videoOrientation = orientation;
         }
-          NSLog(@"AASSDD22");
+      }
     });
 }
 
